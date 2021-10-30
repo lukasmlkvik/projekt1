@@ -100,53 +100,49 @@ createTreeRec<-function(trainData, fun = sse, err = 0.5, maxK = 100, minGroupe =
   if(err >= fun(YVector, value) || pocetPozorovani <= minGroupe*2 || maxK == 0){
     return(TreeNode$new(value = value))
   }
-  
-  #hodnoty chyby zo zadanej funkcie, pri rozdeleni dat na pozicii i(index 1 rozdeli trainData na minGroupe a zvysok)
-  values = matrix(nrow = pocetPremenych, ncol = pocetPozorovani-2*minGroupe+1)
+
   #matica indexov, zoradenie podla parametra
   indexMatrix = matrix(nrow = pocetPremenych, ncol = pocetPozorovani)
   
-  #nastavenie hodnot pre kazde rozdelenie
+  #hladanie najlepsieho rozdelenia
   min = Inf
   index =0
   separate = 0
+  pomValue = Inf;
   for (i in 1:pocetPremenych) {
     if(is.character(trainData[,i+1])){
       bol = data.frame(1)
-      for (j in (minGroupe):(pocetPozorovani-minGroupe)) {
-        j_offset = j+1-minGroupe
-        if(is.null(bol[1,trainData[j_offset,i+1]])){
-          pomFilter = trainData[,i+1]==trainData[j_offset,i+1];
+      for (j in (1):(pocetPozorovani)) {
+        if(is.null(bol[1,trainData[j,i+1]])){
+          pomFilter = trainData[,i+1]==trainData[j,i+1];
           prvaPolovica = YVector[pomFilter]
           druhaPolovica = YVector[!pomFilter]
           mean1 = .Internal(mean(prvaPolovica))
           mean2 = (value * pocetPozorovani - mean1*length(prvaPolovica))/length(druhaPolovica)
-          bol[1,trainData[j_offset,i+1]] = fun(prvaPolovica,mean1) + fun(druhaPolovica,mean2)
+          bol[1,trainData[j,i+1]] = 1
+          pomValue = fun(prvaPolovica,mean1) + fun(druhaPolovica,mean2)
           
-          values[i,j_offset] = bol[1,trainData[j_offset,i+1]]
-          
-          if(min > values[i,j_offset] ){
-            min = values[i,j_offset]
+          if(min > pomValue ){
+            min = pomValue
             index = i
             separate = j
           }
-        } 
+        }
       }
     }else{
       indexMatrix[i,] = order(trainData[,i+1])
       for (j in (minGroupe):(pocetPozorovani-minGroupe)) {
-        j_offset = j+1-minGroupe
         if(trainData[indexMatrix[i,j],i+1]==trainData[indexMatrix[i,j+1],i+1]){
-          values[i,j+1-minGroupe] = Inf
+          
         }else{
           prvaPolovica = YVector[indexMatrix[i,1:j]]
           druhaPolovica = YVector[indexMatrix[i,(j+1):pocetPozorovani]]
           mean1 = .Internal(mean(prvaPolovica))
           mean2 = (value * pocetPozorovani - mean1*length(prvaPolovica))/length(druhaPolovica)
-          values[i,j_offset] = fun(prvaPolovica,mean1) + fun(druhaPolovica, mean2)
+          pomValue = fun(prvaPolovica,mean1) + fun(druhaPolovica, mean2)
           
-          if(min > values[i,j_offset] ){
-            min = values[i,j_offset]
+          if(min > pomValue ){
+            min = pomValue
             index = i
             separate = j
           }

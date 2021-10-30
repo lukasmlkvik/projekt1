@@ -40,7 +40,7 @@ table(vysledok,test$survived)
 
 
 
-n = 2e1
+n = 1e1
 system.time(
   replicate(n,createTree(survived ~ sex + age + pclass + fare, train,fun=sse,maxK=10,minGroupe = 20))
 )
