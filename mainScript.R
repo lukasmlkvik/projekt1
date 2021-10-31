@@ -40,9 +40,23 @@ table(vysledok,test$survived)
 
 
 
-n = 1e1
+n = 2e1
 system.time(
   replicate(n,createTree(survived ~ sex + age + pclass + fare, train,fun=sse,maxK=10,minGroupe = 20))
 )
 
+zaciatok = Sys.time()
+model = createForest(survived ~ sex + age + pclass + fare, train,fun=sse,maxK=10,minGroupe = 10,n=20)
+Sys.time() - zaciatok
+model
 
+
+path <- 'G:/projekt1/projekt1/winequality-red.csv'
+wine <-read.csv(path,sep = ";")
+wine
+head(wine)
+model = createTree(quality ~ ., wine,fun=sse,maxK=10,minGroupe = 20)
+model = createForest(quality ~ ., wine,fun=sse,maxK=10,minGroupe = 20,n=20)
+vysledok = round(model$predict(wine))
+
+table(vysledok,wine$quality)

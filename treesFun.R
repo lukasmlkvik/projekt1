@@ -208,3 +208,46 @@ createTree <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGroup
 createTreeRec = cmpfun(createTreeRec)
 createTree = cmpfun(createTree)
 
+
+
+TreeNodeForest<- setRefClass("TreeNodeForest", 
+                               contains = "TreeNode",
+                               fields = c(
+                                 param = "character",
+                                 trees = list("list")
+                               ),
+                               methods = list(
+                                 predictOne = function(x) {
+                                   pom = 0;
+                                   for (t in trees) {
+                                     pom = pom + t$predict(x);
+                                   }
+                                   return(pom/value)
+                                 },
+                                 printModel = function(m = ""){
+                                 }
+                               )
+)
+
+createForest <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGroupe = 1,n = 10){
+  
+  #filtrovanie len potrebnych dat
+  data2 = model.frame(formula,data)
+  
+  for (i in 1:ncol(data2)) {
+    c = data2[1,i]
+    if(!is.numeric(c)&&!is.character(c)&&!is.factor(c)){
+      stop("Bad columns!!!")
+    } 
+  }
+  
+  forest = TreeNodeForest$new(value = n)
+  for (i in 1:n) {
+    data3 = data2[runif(ncol(data2))<0.8,]
+    forest$trees[i] = createTreeRec(data3, fun, err,maxK ,minGroupe)
+  }
+  
+  return(forest)
+}
+
+createForest = cmpfun(createForest)
