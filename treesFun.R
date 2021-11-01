@@ -109,17 +109,23 @@ createTreeRec<-function(trainData, fun = sse, err = 0.5, maxK = 100, minGroupe =
   index =0
   separate = 0
   pomValue = Inf;
+  pomFilter = trainData[,2]==trainData[1,2];
   for (i in 1:pocetPremenych) {
     if(is.character(trainData[,i+1])){
-      bol = data.frame(1)
+      bol = list();
+      if(is.factor(trainData[,i+1])){
+        bol[levels(trainData[,i+1])] = 0
+      }else{
+        bol[unique(trainData[,i+1])] = 0
+      }
       for (j in (1):(pocetPozorovani)) {
-        if(is.null(bol[1,trainData[j,i+1]])){
+        if(bol[trainData[j,i+1]] == 0){
           pomFilter = trainData[,i+1]==trainData[j,i+1];
           prvaPolovica = YVector[pomFilter]
           druhaPolovica = YVector[!pomFilter]
           mean1 = .Internal(mean(prvaPolovica))
           mean2 = (value * pocetPozorovani - mean1*length(prvaPolovica))/length(druhaPolovica)
-          bol[1,trainData[j,i+1]] = 1
+          bol[trainData[j,i+1]] = 1
           pomValue = fun(prvaPolovica,mean1) + fun(druhaPolovica,mean2)
           
           if(min > pomValue ){
@@ -203,7 +209,7 @@ createTree <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGroup
 }
 
 #install.packages("compiler", lib="G:/RLib")
-#library(compiler,lib.loc ="G:/RLib")
+library(compiler,lib.loc ="G:/RLib")
 
 createTreeRec = cmpfun(createTreeRec)
 createTree = cmpfun(createTree)
@@ -251,3 +257,4 @@ createForest <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGro
 }
 
 createForest = cmpfun(createForest)
+
