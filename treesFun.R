@@ -88,7 +88,7 @@ sse <-function(a,b){
 }
 
 #rekurzivne vytvaranie rozdeleni
-createTreeRec<-function(trainData, fun = sse, err = 0.5, maxK = 100, minGroupe = 1){
+createTreeRec<-function(trainData, fun = sse, err = 0.5, maxK = 100, minGroupe = 1, penalty = 0){
   pocetPremenych= ncol(trainData) -1
   pocetPozorovani= nrow(trainData)
   
@@ -108,32 +108,39 @@ createTreeRec<-function(trainData, fun = sse, err = 0.5, maxK = 100, minGroupe =
   min = Inf
   index =0
   separate = 0
-  pomValue = Inf;
-  pomFilter = trainData[,2]==trainData[1,2];
+  pomValue = Inf
+  pomFilter = trainData[,2]==trainData[1,2]
   for (i in 1:pocetPremenych) {
-    if(is.character(trainData[,i+1])){
-      bol = list();
+    if(!is.numeric(trainData[,i+1])){
+      grups = 1:1
+      best = 0
       if(is.factor(trainData[,i+1])){
-        bol[levels(trainData[,i+1])] = 0
+        grups = levels(trainData[,i+1])
       }else{
-        bol[unique(trainData[,i+1])] = 0
+        grups = unique(trainData[,i+1])
       }
-      for (j in (1):(pocetPozorovani)) {
-        if(bol[trainData[j,i+1]] == 0){
-          pomFilter = trainData[,i+1]==trainData[j,i+1];
-          prvaPolovica = YVector[pomFilter]
-          druhaPolovica = YVector[!pomFilter]
-          mean1 = .Internal(mean(prvaPolovica))
-          mean2 = (value * pocetPozorovani - mean1*length(prvaPolovica))/length(druhaPolovica)
-          bol[trainData[j,i+1]] = 1
-          pomValue = fun(prvaPolovica,mean1) + fun(druhaPolovica,mean2)
-          
-          if(min > pomValue ){
-            min = pomValue
-            index = i
-            separate = j
-          }
+      max = 0
+      pomM = 0
+      for (j in grups) {
+        pomFilter = trainData[,i+1]==j
+        pomM = .Internal(mean(YVector[pomFilter]))
+        if(max < pomM){
+          max = pomM
+          best = j
         }
+      }
+      
+      pomFilter = trainData[,i+1]==best
+      prvaPolovica = YVector[pomFilter]
+      druhaPolovica = YVector[!pomFilter]
+      mean1 = max
+      mean2 = (value * pocetPozorovani - mean1*length(prvaPolovica))/length(druhaPolovica)
+      pomValue = fun(prvaPolovica,mean1) + fun(druhaPolovica,mean2)
+      
+      if(min > pomValue ){
+        min = pomValue
+        index = i
+        separate = match(j,trainData[,i+1])
       }
     }else{
       indexMatrix[i,] = order(trainData[,i+1])
@@ -159,7 +166,7 @@ createTreeRec<-function(trainData, fun = sse, err = 0.5, maxK = 100, minGroupe =
   }
   
   #ukoncenie vetvenia(toto vetvenie by nevytvorilo lepsi vysledok)
-  if(min >= fun(trainData[,1], value)){
+  if(min + penalty >= fun(trainData[,1], value)){
     return(TreeNode$new(value = value))
   }
   
@@ -169,15 +176,15 @@ createTreeRec<-function(trainData, fun = sse, err = 0.5, maxK = 100, minGroupe =
     node$param = colnames(trainData)[index+1]
     node$compareValue = trainData[separate,node$param]
     
-    node$less = createTreeRec(trainData[trainData[,node$param]!=node$compareValue,], fun, err, maxK -1,minGroupe)
-    node$equalesMore = createTreeRec(trainData[trainData[,node$param]==node$compareValue,], fun, err,maxK -1,minGroupe)
+    node$less = createTreeRec(trainData[trainData[,node$param]!=node$compareValue,], fun, err, maxK -1,minGroupe,penalty)
+    node$equalesMore = createTreeRec(trainData[trainData[,node$param]==node$compareValue,], fun, err,maxK -1,minGroupe,penalty)
   }else{
     node = TreeNodeNumeric$new(value = value)
     node$param = colnames(trainData)[index+1]
     node$compareValue = (trainData[indexMatrix[index, separate],node$param]+trainData[indexMatrix[index, separate+1],node$param])/2
     
-    node$less = createTreeRec(trainData[indexMatrix[index, 1:separate],], fun, err, maxK -1,minGroupe)
-    node$equalesMore = createTreeRec(trainData[indexMatrix[index, (separate+1):pocetPozorovani],], fun, err,maxK -1,minGroupe)
+    node$less = createTreeRec(trainData[indexMatrix[index, 1:separate],], fun, err, maxK -1,minGroupe,penalty)
+    node$equalesMore = createTreeRec(trainData[indexMatrix[index, (separate+1):pocetPozorovani],], fun, err,maxK -1,minGroupe,penalty)
   }
   
   return(node)
@@ -193,7 +200,7 @@ createTreeRec<-function(trainData, fun = sse, err = 0.5, maxK = 100, minGroupe =
 #' @param minGroupe - minimalna velkost mnoziny rozdelenych dat (aby nedoslo k pretrenovaniu)
 #' zdroj : https://www.youtube.com/watch?v=g9c66TUylZ4&t=1111s
 #' 
-createTree <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGroupe = 1){
+createTree <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGroupe = 1, penalty = 0){
   
   #filtrovanie len potrebnych dat
   data2 = model.frame(formula,data)
@@ -205,7 +212,7 @@ createTree <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGroup
     } 
   }
   
-  return(createTreeRec(data2, fun, err,maxK ,minGroupe))
+  return(createTreeRec(data2, fun, err,maxK ,minGroupe, penalty))
 }
 
 #install.packages("compiler", lib="G:/RLib")
