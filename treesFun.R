@@ -231,15 +231,11 @@ TreeNodeForest<- setRefClass("TreeNodeForest",
                                  errors = "vector"
                                ),
                                methods = list(
-                                 predictOne = function(x) {
+                                 predict = function(data) {
                                    pom = 0;
-                                #   for (t in trees) {
-                                #     pom = pom + t$predict(x)
-                                 #  }
-                                  # return(pom/value)
                                    for (i in 1:value) {
                                      
-                                     pom = pom + (trees[[i]])$predict(x) * errors[i]
+                                     pom = pom + (trees[[i]])$predict(data) * errors[i]
                                    }
                                    return(pom)
                                  },
@@ -249,10 +245,21 @@ TreeNodeForest<- setRefClass("TreeNodeForest",
                                      (trees[[i]])$printModel()
                                    }
                                  }
+                                 ###############################
+                                 , 
+                                 predict2 = function(data) {
+                                   pom = 0;
+                                   for (i in 1:value) {
+                                     
+                                     pom = pom + (trees[[i]])$predict(data)
+                                   }
+                                   return(pom/value)
+                                 }
+                                 #########################
                                )
 )
 
-createForest <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGroupe = 1, penalty = 0,n = 10){
+createForest <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGroupe = 1, penalty = 0,n = 10, groupePomer = 0.8){
   
   #filtrovanie len potrebnych dat
   data2 = model.frame(formula,data)
@@ -267,13 +274,13 @@ createForest <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGro
   forest = TreeNodeForest$new(value = n, errors = 1:n)
   lengthD = nrow(data2)
   lengthP = ncol(data2)
-  riadky = 1:(lengthD*0.8)#round(runif(lengthD*0.8,1,lengthD))
-  stlpce = 1:(lengthP*0.8)#c(1,unique(round(runif(lengthP*0.8,2,lengthP))))
-  test = data2[1:(lengthD*0.2),]
+  riadky = 1:(lengthD*groupePomer)#round(runif(lengthD*0.8,1,lengthD))
+  stlpce = 1:(lengthP*groupePomer)#c(1,unique(round(runif(lengthP*0.8,2,lengthP))))
+  test = data2[1:(lengthD*(1-groupePomer)),]
   sum = 0;
   for (i in 1:n) {
-    riadky = round(runif(lengthD*0.8,1,lengthD))
-    stlpce = c(1,unique(round(runif(lengthP*0.8,2,lengthP))))
+    riadky = round(runif(lengthD*groupePomer,1,lengthD))
+    stlpce = c(1,unique(round(runif(max(lengthP*groupePomer,1),2,lengthP))))
     
     forest$trees[[i]] = createTreeRec(data2[riadky,stlpce], fun, err,maxK ,minGroupe,penalty)
     
