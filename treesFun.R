@@ -242,7 +242,7 @@ TreeNodeForest<- setRefClass("TreeNodeForest",
                                )
 )
 
-createForest <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGroupe = 1,n = 10){
+createForest <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGroupe = 1, penalty = 0,n = 10){
   
   #filtrovanie len potrebnych dat
   data2 = model.frame(formula,data)
@@ -255,13 +255,18 @@ createForest <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGro
   }
   
   forest = TreeNodeForest$new(value = n)
+  lengthD = nrow(data2)
+  lengthP = ncol(data2)
+  riadky = 1:(lengthD*0.8)#round(runif(lengthD*0.8,1,lengthD))
+  stlpce = 1:(lengthP*0.8)#c(1,unique(round(runif(lengthP*0.8,2,lengthP))))
   for (i in 1:n) {
-    data3 = data2[runif(ncol(data2))<0.8,]
-    forest$trees[i] = createTreeRec(data3, fun, err,maxK ,minGroupe)
+    riadky = round(runif(lengthD*0.8,1,lengthD))
+    stlpce = c(1,unique(round(runif(lengthP*0.8,2,lengthP))))
+    
+    forest$trees[i] = createTreeRec(data2[riadky,stlpce], fun, err,maxK ,minGroupe,penalty)
   }
   
   return(forest)
 }
 
 createForest = cmpfun(createForest)
-

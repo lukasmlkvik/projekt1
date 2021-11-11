@@ -37,7 +37,7 @@ table(vysledok,test$survived)
 
 #install.packages("bench", lib="G:/RLib")
 #library(bench,lib.loc ="G:/RLib")
-
+model =  createForest(survived ~ sex + age + pclass + fare, train,fun=sse,maxK=10,minGroupe = 10,n=50)
 
 
 n = 2e1
