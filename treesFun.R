@@ -221,23 +221,33 @@ library(compiler,lib.loc ="G:/RLib")
 createTreeRec = cmpfun(createTreeRec)
 createTree = cmpfun(createTree)
 
-
+TreeNodeForest
 
 TreeNodeForest<- setRefClass("TreeNodeForest", 
                                contains = "TreeNode",
                                fields = c(
                                  param = "character",
-                                 trees = list("list")
+                                 trees = "list",
+                                 errors = "vector"
                                ),
                                methods = list(
                                  predictOne = function(x) {
                                    pom = 0;
-                                   for (t in trees) {
-                                     pom = pom + t$predict(x);
+                                #   for (t in trees) {
+                                #     pom = pom + t$predict(x)
+                                 #  }
+                                  # return(pom/value)
+                                   for (i in 1:value) {
+                                     
+                                     pom = pom + (trees[[i]])$predict(x) * errors[i]
                                    }
-                                   return(pom/value)
+                                   return(pom)
                                  },
                                  printModel = function(m = ""){
+                                   for (i in 1:value) {
+                                     print(errors[i])
+                                     (trees[[i]])$printModel()
+                                   }
                                  }
                                )
 )
@@ -254,19 +264,32 @@ createForest <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGro
     } 
   }
   
-  forest = TreeNodeForest$new(value = n)
+  forest = TreeNodeForest$new(value = n, errors = 1:n)
   lengthD = nrow(data2)
   lengthP = ncol(data2)
   riadky = 1:(lengthD*0.8)#round(runif(lengthD*0.8,1,lengthD))
   stlpce = 1:(lengthP*0.8)#c(1,unique(round(runif(lengthP*0.8,2,lengthP))))
+  test = data2[1:(lengthD*0.2),]
+  sum = 0;
   for (i in 1:n) {
     riadky = round(runif(lengthD*0.8,1,lengthD))
     stlpce = c(1,unique(round(runif(lengthP*0.8,2,lengthP))))
     
-    forest$trees[i] = createTreeRec(data2[riadky,stlpce], fun, err,maxK ,minGroupe,penalty)
+    forest$trees[[i]] = createTreeRec(data2[riadky,stlpce], fun, err,maxK ,minGroupe,penalty)
+    
+    test = data2[!(1:lengthD %in% riadky),stlpce]
+
+    forest$errors[i] = mse((forest$trees[[i]])$predict(test),test[,1])
+    sum = sum + forest$errors[i]
+  }
+  for (i in 1:n) {
+    
+    forest$errors[i] = ((sum-forest$errors[i])/sum)/(n-1)
   }
   
   return(forest)
 }
 
 createForest = cmpfun(createForest)
+
+
