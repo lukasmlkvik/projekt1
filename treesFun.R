@@ -1,14 +1,11 @@
 ###############################################################################################################
 #    deklaracia tried
 ###############################################################################################################
-#tato instancia bude vytvorena iba v listoch stromu
-TreeNode <- setRefClass("TreeNode", 
-                        fields = c(
-                          value = "numeric"
-                        ),
+#intefrace pre Modely
+ITreeNode <- setRefClass("ITreeNode", 
                         methods = list(
                           predictOne = function(x) {
-                            return(value)
+                            print("!!!")
                           },
                           predict = function(data) {
                             pocetPozorovani = nrow(data)
@@ -19,11 +16,27 @@ TreeNode <- setRefClass("TreeNode",
                             return(vysledok)
                           },
                           printModel = function(m = ""){
+                            print("!!!")
+                          }
+                        )
+)
+###############################################################################################################
+#tato instancia bude vytvorena iba v listoch stromu
+TreeNode <- setRefClass("TreeNode",
+                        contains = "ITreeNode",
+                        fields = c(
+                          value = "numeric"
+                        ),
+                        methods = list(
+                          predictOne = function(x) {
+                            return(value)
+                          },
+                          printModel = function(m = ""){
                             print(paste(m,value))
                           }
                         )
 )
-
+###############################################################################################################
 #predok pre vetvenie , nikdy nebude v liste
 TreeNodeCompare <- setRefClass("TreeNodeCompare", 
                                contains = "TreeNode",
@@ -41,6 +54,7 @@ TreeNodeCompare <- setRefClass("TreeNodeCompare",
                                  getCompareValue = function(){return(NULL)}
                                )
 )
+###############################################################################################################
 #vetvenie na zaklade numerickej hodnoty
 TreeNodeNumeric <- setRefClass("TreeNodeNumeric", 
                                contains = "TreeNodeCompare",
@@ -75,6 +89,53 @@ TreeNodeClassification <- setRefClass("TreeNodeClassification",
                                         getCompareValue = function(){return(compareValue)}
                                       )
 )
+###############################################################################################################
+###############################################################################################################
+#lesy
+TreeNodeForest<- setRefClass("TreeNodeForest", 
+                             contains = "ITreeNode",
+                             fields = c(
+                               n = "numeric",
+                               trees = "list"
+                             ),
+                             methods = list(
+                               predict = function(data) {
+                                 pom = 0;
+                                 for (i in 1:n) {
+                                   pom = pom + (trees[[i]])$predict(data)
+                                 }
+                                 return(pom/n)
+                               },
+                               printModel = function(m = "") {
+                                 for (i in 1:n) {
+                                   print(i)
+                                   (trees[[i]])$printModel()
+                                 }
+                               }
+                             )
+)
+
+TreeNodeRandomForest<- setRefClass("TreeNodeRandomForest", 
+                             contains = "TreeNodeForest",
+                             fields = c(
+                               errors = "vector"
+                             ),
+                             methods = list(
+                               predict = function(data) {
+                                 pom = 0;
+                                 for (i in 1:n) {
+                                   pom = pom + (trees[[i]])$predict(data) * errors[i]
+                                 }
+                                 return(pom)
+                               },
+                               printModel = function(m = "") {
+                                 for (i in 1:n) {
+                                   print(paste(i,errors[i]))
+                                   (trees[[i]])$printModel()
+                                 }
+                               }
+                             )
+)
 
 ###############################################################################################################
 #    deklaracia funkcii
@@ -86,11 +147,13 @@ mse <-function(a,b){
 sse <-function(a,b){
   return(sum((a-b)**2))
 }
-
+###############################################################################################################
 #rekurzivne vytvaranie rozdeleni
-createTreeRec<-function(trainData, fun = sse, err = 0.5, maxK = 100, minGroupe = 1, penalty = 0){
+createTreeRec<-function(trainData, fun = sse, err = 0.5, maxK = 100, minGroupe = 1, penalty = 0,pomerPremenych =1){
   pocetPremenych= ncol(trainData) -1
   pocetPozorovani= nrow(trainData)
+  
+  premenne = sample(1:(pocetPremenych), max(1,pocetPremenych*pomerPremenych))
   
   YVector = trainData[,1]
   
@@ -110,7 +173,7 @@ createTreeRec<-function(trainData, fun = sse, err = 0.5, maxK = 100, minGroupe =
   separate = 0
   pomValue = Inf
   pomFilter = trainData[,2]==trainData[1,2]
-  for (i in 1:pocetPremenych) {
+  for (i in premenne) {
     if(!is.numeric(trainData[,i+1])){
       grups = 1:1
       best = 0
@@ -176,15 +239,15 @@ createTreeRec<-function(trainData, fun = sse, err = 0.5, maxK = 100, minGroupe =
     node$param = colnames(trainData)[index+1]
     node$compareValue = trainData[separate,node$param]
     
-    node$less = createTreeRec(trainData[trainData[,node$param]!=node$compareValue,], fun, err, maxK -1,minGroupe,penalty)
-    node$equalesMore = createTreeRec(trainData[trainData[,node$param]==node$compareValue,], fun, err,maxK -1,minGroupe,penalty)
+    node$less = createTreeRec(trainData[trainData[,node$param]!=node$compareValue,], fun, err, maxK -1,minGroupe,penalty,pomerPremenych)
+    node$equalesMore = createTreeRec(trainData[trainData[,node$param]==node$compareValue,], fun, err,maxK -1,minGroupe,penalty,pomerPremenych)
   }else{
     node = TreeNodeNumeric$new(value = value)
     node$param = colnames(trainData)[index+1]
     node$compareValue = (trainData[indexMatrix[index, separate],node$param]+trainData[indexMatrix[index, separate+1],node$param])/2
     
-    node$less = createTreeRec(trainData[indexMatrix[index, 1:separate],], fun, err, maxK -1,minGroupe,penalty)
-    node$equalesMore = createTreeRec(trainData[indexMatrix[index, (separate+1):pocetPozorovani],], fun, err,maxK -1,minGroupe,penalty)
+    node$less = createTreeRec(trainData[indexMatrix[index, 1:separate],], fun, err, maxK -1,minGroupe,penalty,pomerPremenych)
+    node$equalesMore = createTreeRec(trainData[indexMatrix[index, (separate+1):pocetPozorovani],], fun, err,maxK -1,minGroupe,penalty,pomerPremenych)
   }
   
   return(node)
@@ -200,19 +263,19 @@ createTreeRec<-function(trainData, fun = sse, err = 0.5, maxK = 100, minGroupe =
 #' @param minGroupe - minimalna velkost mnoziny rozdelenych dat (aby nedoslo k pretrenovaniu)
 #' zdroj : https://www.youtube.com/watch?v=g9c66TUylZ4&t=1111s
 #' 
-createTree <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGroupe = 1, penalty = 0){
+createTree <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGroupe = 1, penalty = 0,pomerPremenych = 1){
   
   #filtrovanie len potrebnych dat
   data2 = model.frame(formula,data)
   
   for (i in 1:ncol(data2)) {
     c = data2[1,i]
-    if(!is.numeric(c)&&!is.character(c)&&!is.factor(c)){
+    if(!is.numeric(c)&&!is.character(c)&&!is.factor(c)) {
       stop("Bad columns!!!")
     } 
   }
   
-  return(createTreeRec(data2, fun, err,maxK ,minGroupe, penalty))
+  return(createTreeRec(data2, fun, err,maxK ,minGroupe, penalty,pomerPremenych))
 }
 
 #install.packages("compiler", lib="G:/RLib")
@@ -220,45 +283,7 @@ library(compiler,lib.loc ="G:/RLib")
 
 createTreeRec = cmpfun(createTreeRec)
 createTree = cmpfun(createTree)
-
-TreeNodeForest
-
-TreeNodeForest<- setRefClass("TreeNodeForest", 
-                               contains = "TreeNode",
-                               fields = c(
-                                 param = "character",
-                                 trees = "list",
-                                 errors = "vector"
-                               ),
-                               methods = list(
-                                 predict = function(data) {
-                                   pom = 0;
-                                   for (i in 1:value) {
-                                     
-                                     pom = pom + (trees[[i]])$predict(data) * errors[i]
-                                   }
-                                   return(pom)
-                                 },
-                                 printModel = function(m = ""){
-                                   for (i in 1:value) {
-                                     print(errors[i])
-                                     (trees[[i]])$printModel()
-                                   }
-                                 }
-                                 ###############################
-                                 , 
-                                 predict2 = function(data) {
-                                   pom = 0;
-                                   for (i in 1:value) {
-                                     
-                                     pom = pom + (trees[[i]])$predict(data)
-                                   }
-                                   return(pom/value)
-                                 }
-                                 #########################
-                               )
-)
-
+###############################################################################################################
 createForest <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGroupe = 1, penalty = 0,n = 10, groupePomer = 0.8){
   
   #filtrovanie len potrebnych dat
@@ -271,28 +296,23 @@ createForest <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGro
     } 
   }
   
-  forest = TreeNodeForest$new(value = n, errors = 1:n)
+  forest = TreeNodeRandomForest$new(n = n, errors = 1:n)
   lengthD = nrow(data2)
-  lengthP = ncol(data2)
   riadky = 1:(lengthD*groupePomer)#round(runif(lengthD*0.8,1,lengthD))
-  stlpce = 1:(lengthP*groupePomer)#c(1,unique(round(runif(lengthP*0.8,2,lengthP))))
   test = data2[1:(lengthD*(1-groupePomer)),]
-  sum = 0;
+  sum = 0
   for (i in 1:n) {
-    riadky = round(runif(lengthD*groupePomer,1,lengthD))
-    stlpce = c(1,unique(round(runif(max(lengthP*groupePomer,1),2,lengthP))))
+    riadky = sample(1:lengthD, lengthD*groupePomer, replace=T)
     
-    forest$trees[[i]] = createTreeRec(data2[riadky,stlpce], fun, err,maxK ,minGroupe,penalty)
+    forest$trees[[i]] = createTreeRec(data2[riadky,], fun, err,maxK ,minGroupe,penalty,groupePomer)
     
-    test = data2[!(1:lengthD %in% riadky),stlpce]
+    test = data2[!(1:lengthD %in% riadky),]
 
     forest$errors[i] = mse((forest$trees[[i]])$predict(test),test[,1])
     sum = sum + forest$errors[i]
   }
-  for (i in 1:n) {
-    
-    forest$errors[i] = ((sum-forest$errors[i])/sum)/(n-1)
-  }
+  
+  forest$errors = ((sum-forest$errors)/sum)/(n-1)
   
   return(forest)
 }
@@ -300,3 +320,39 @@ createForest <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGro
 createForest = cmpfun(createForest)
 
 
+createForestADABoost <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGroupe = 1, penalty = 0,n = 10, groupePomer = 0.8){
+  
+  #filtrovanie len potrebnych dat
+  data2 = model.frame(formula,data)
+  
+  for (i in 1:ncol(data2)) {
+    c = data2[1,i]
+    if(!is.numeric(c)&&!is.character(c)&&!is.factor(c)){
+      stop("Bad columns!!!")
+    } 
+  }
+  
+  forest = TreeNodeForest$new(n = n)
+  lengthD = nrow(data2)
+  riadky = 1:(lengthD*groupePomer)#round(runif(lengthD*0.8,1,lengthD))
+  test = data2[1:(lengthD*(1-groupePomer)),]
+  sum = 0
+  errors = runif(lengthD)
+  pred = 1:lengthD * 0
+  for (i in 1:n) {
+   # riadky = errors > runif(lengthD)
+    riadky = head(order(-errors),lengthD*groupePomer)
+    
+    forest$trees[[i]] = createTreeRec(data2[riadky,], fun, err,maxK ,minGroupe,penalty)
+    
+    pred = (pred * (i-1) + (forest$trees[[i]])$predict(data2))/i
+    
+    errors = (pred - data2[,1])**2
+    #errors = errors / max(errors)
+    
+  }
+  
+  return(forest)
+}
+
+createForestADABoost = cmpfun(createForestADABoost)

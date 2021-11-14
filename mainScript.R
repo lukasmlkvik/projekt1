@@ -27,6 +27,9 @@ model$printModel()
 
 #vytvorenie predikcii na testovacich datach
 vysledok  = model$predict(test)
+vysledok  = model$predict2(test)
+vysledok  = model$predict3(test)
+
 #kedze zavizla premenna, ktoru chceme zistit je bud 0 alebo 1, tak vysledok predikcie sa zaokruhli
 pravdepodobnost = 0.5
 vysledok[vysledok<pravdepodobnost] = 0
@@ -37,7 +40,11 @@ table(vysledok,test$survived)
 
 #install.packages("bench", lib="G:/RLib")
 #library(bench,lib.loc ="G:/RLib")
-model =  createForest(survived ~ sex + age + pclass + fare, train,fun=sse,maxK=10,minGroupe = 10,n=10)
+model =  createForest(survived ~ sex + age + pclass + fare, train,fun=sse,maxK=10,minGroupe = 10,n=10, groupePomer=0.8)
+model =  createTree(survived ~ sex + age + pclass + fare, train,fun=sse,maxK=10,minGroupe = 10)
+model =  createForest(survived ~ ., train,fun=sse,maxK=2,minGroupe = 10,n=10, groupePomer=0.5)
+
+model$predict(test) - model$predict2(test)
 
 system.time(
   replicate(n,createTree(survived ~ sex + age + pclass + fare, train,fun=sse,maxK=10,minGroupe = 20))
@@ -56,6 +63,7 @@ head(wine)
 model = createTree(quality ~ ., wine,fun=sse,maxK=10,minGroupe = 20)
 model = createForest(quality ~ ., wine,fun=sse,maxK=10,minGroupe = 20,n=20)
 vysledok = round(model$predict(wine))
+vysledok = round(model$predict2(wine))
 
 table(vysledok,wine$quality)
 
