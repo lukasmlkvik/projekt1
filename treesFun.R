@@ -320,7 +320,7 @@ createForest <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGro
 createForest = cmpfun(createForest)
 
 
-createForestADABoost <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGroupe = 1, penalty = 0,n = 10, groupePomer = 0.8){
+createForestADABoost <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGroupe = 1, penalty = 0,n = 10){
   
   #filtrovanie len potrebnych dat
   data2 = model.frame(formula,data)
@@ -334,22 +334,30 @@ createForestADABoost <- function(formula, data, fun = sse, err = 0.5, maxK = 100
   
   forest = TreeNodeForest$new(n = n)
   lengthD = nrow(data2)
-  riadky = 1:(lengthD*groupePomer)#round(runif(lengthD*0.8,1,lengthD))
-  test = data2[1:(lengthD*(1-groupePomer)),]
+  riadky = 1:(lengthD)#round(runif(lengthD*0.8,1,lengthD))
   sum = 0
-  errors = runif(lengthD)
+  errors = 1:lengthD * 0 +(1/lengthD)#runif(lengthD)
   pred = 1:lengthD * 0
+  
+  for (i in 1:(lengthD-1)) {
+    errors[i+1] = errors[i+1] + errors[i]
+  }
+  
   for (i in 1:n) {
-   # riadky = errors > runif(lengthD)
-    riadky = head(order(-errors),lengthD*groupePomer)
+    #riadky = errors > runif(lengthD)
+    #riadky = head(order(-errors),lengthD*groupePomer)
+    riadky = sapply(runif(lengthD), FUN = function(x){return(Position(function(xx) xx> x,errors))})
     
     forest$trees[[i]] = createTreeRec(data2[riadky,], fun, err,maxK ,minGroupe,penalty)
     
     pred = (pred * (i-1) + (forest$trees[[i]])$predict(data2))/i
     
-    errors = (pred - data2[,1])**2
-    #errors = errors / max(errors)
-    
+    #errors = (pred - data2[,1])**2
+    errors = abs(pred - data2[,1])
+    errors = errors / max(errors)
+    for (i in 1:(lengthD-1)) {
+      errors[i+1] = errors[i+1] + errors[i]
+    }
   }
   
   return(forest)
