@@ -40,7 +40,9 @@ table(vysledok,test$survived)
 #library(bench,lib.loc ="G:/RLib")
 model =  createForest(survived ~ sex + age + pclass + fare, train,fun=sse,maxK=10,minGroupe = 10,n=10, groupePomer=0.8)
 model =  createTree(survived ~ sex + age + pclass + fare, train,fun=sse,maxK=10,minGroupe = 10)
-model =  createForestADABoost(survived ~ sex + age + pclass + fare, train,fun=sse,maxK=10,minGroupe = 10,n=10, groupePomer=0.8)
+model =  createForestADABoost(survived ~ sex + age + pclass + fare, train,fun=sse,maxK=1,minGroupe = 10,n=10)
+model =  createForestGradienBoost(survived ~ sex + age + pclass + fare, train,fun=sse,maxK=10,minGroupe = 10,n=10, learningValue = 0.1)
+
 model =  createForest(survived ~ ., train,fun=sse,maxK=2,minGroupe = 10,n=10, groupePomer=0.5)
 
 model$predict(test) - model$predict2(test)

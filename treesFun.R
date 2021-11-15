@@ -137,6 +137,30 @@ TreeNodeRandomForest<- setRefClass("TreeNodeRandomForest",
                              )
 )
 
+TreeNodeGradBoostForest<- setRefClass("TreeNodeGradBoostForest", 
+                                   contains = "TreeNodeForest",
+                                   fields = c(
+                                     value = "numeric",
+                                     learningValue = "numeric"
+                                   ),
+                                   methods = list(
+                                     predict = function(data) {
+                                       pom = value;
+                                       for (i in 1:n) {
+                                         pom = pom + (trees[[i]])$predict(data) * learningValue
+                                       }
+                                       return(pom)
+                                     },
+                                     printModel = function(m = "") {
+                                       print(value)
+                                       for (i in 1:n) {
+                                         print(i)
+                                         (trees[[i]])$printModel()
+                                       }
+                                     }
+                                   )
+)
+
 ###############################################################################################################
 #    deklaracia funkcii
 ###############################################################################################################
@@ -147,6 +171,23 @@ mse <-function(a,b){
 sse <-function(a,b){
   return(sum((a-b)**2))
 }
+###############################################################################################################
+
+filterData <- function(formula, data){
+  #filtrovanie len potrebnych dat
+  data2 = model.frame(formula,data)
+  
+  for (i in 1:ncol(data2)) {
+    c = data2[1,i]
+    if(!is.numeric(c)&&!is.character(c)&&!is.factor(c)){
+      stop("Bad columns!!!")
+    } 
+  }
+  return(data2)
+}
+
+filterData = cmpfun(filterData)
+
 ###############################################################################################################
 #rekurzivne vytvaranie rozdeleni
 createTreeRec<-function(trainData, fun = sse, err = 0.5, maxK = 100, minGroupe = 1, penalty = 0,pomerPremenych =1){
@@ -266,14 +307,7 @@ createTreeRec<-function(trainData, fun = sse, err = 0.5, maxK = 100, minGroupe =
 createTree <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGroupe = 1, penalty = 0,pomerPremenych = 1){
   
   #filtrovanie len potrebnych dat
-  data2 = model.frame(formula,data)
-  
-  for (i in 1:ncol(data2)) {
-    c = data2[1,i]
-    if(!is.numeric(c)&&!is.character(c)&&!is.factor(c)) {
-      stop("Bad columns!!!")
-    } 
-  }
+  data2 = filterData(formula, data)
   
   return(createTreeRec(data2, fun, err,maxK ,minGroupe, penalty,pomerPremenych))
 }
@@ -287,14 +321,7 @@ createTree = cmpfun(createTree)
 createForest <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGroupe = 1, penalty = 0,n = 10, groupePomer = 0.8){
   
   #filtrovanie len potrebnych dat
-  data2 = model.frame(formula,data)
-  
-  for (i in 1:ncol(data2)) {
-    c = data2[1,i]
-    if(!is.numeric(c)&&!is.character(c)&&!is.factor(c)){
-      stop("Bad columns!!!")
-    } 
-  }
+  data2 = filterData(formula, data)
   
   forest = TreeNodeRandomForest$new(n = n, errors = 1:n)
   lengthD = nrow(data2)
@@ -320,43 +347,37 @@ createForest <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGro
 createForest = cmpfun(createForest)
 
 
-createForestADABoost <- function(formula, data, fun = sse, err = 0.5, maxK = 100, minGroupe = 1, penalty = 0,n = 10){
+createForestADABoost <- function(formula, data, fun = sse, err = 0.5, maxK = 1, minGroupe = 1, penalty = 0,n = 10){
   
   #filtrovanie len potrebnych dat
-  data2 = model.frame(formula,data)
-  
-  for (i in 1:ncol(data2)) {
-    c = data2[1,i]
-    if(!is.numeric(c)&&!is.character(c)&&!is.factor(c)){
-      stop("Bad columns!!!")
-    } 
-  }
+  data2 = filterData(formula, data)
   
   forest = TreeNodeForest$new(n = n)
   lengthD = nrow(data2)
   riadky = 1:(lengthD)#round(runif(lengthD*0.8,1,lengthD))
   sum = 0
-  errors = 1:lengthD * 0 +(1/lengthD)#runif(lengthD)
+  weightss = 1:lengthD * 0 +(1/lengthD)#runif(lengthD)
   pred = 1:lengthD * 0
   
   for (i in 1:(lengthD-1)) {
-    errors[i+1] = errors[i+1] + errors[i]
+    weightss[i+1] = weightss[i+1] + weightss[i]
   }
   
   for (i in 1:n) {
-    #riadky = errors > runif(lengthD)
-    #riadky = head(order(-errors),lengthD*groupePomer)
-    riadky = sapply(runif(lengthD), FUN = function(x){return(Position(function(xx) xx> x,errors))})
+    #riadky = weightss > runif(lengthD)
+    #riadky = head(order(-weightss),lengthD*groupePomer)
+    riadky = sapply(runif(lengthD), FUN = function(x){return(Position(function(xx) xx> x,weightss))})
     
     forest$trees[[i]] = createTreeRec(data2[riadky,], fun, err,maxK ,minGroupe,penalty)
     
     pred = (pred * (i-1) + (forest$trees[[i]])$predict(data2))/i
     
-    #errors = (pred - data2[,1])**2
-    errors = abs(pred - data2[,1])
-    errors = errors / max(errors)
+    weightss = (pred - data2[,1])**2
+    weightss = weightss / sum(weightss)
+    
+    
     for (i in 1:(lengthD-1)) {
-      errors[i+1] = errors[i+1] + errors[i]
+      weightss[i+1] = weightss[i+1] + weightss[i]
     }
   }
   
@@ -364,3 +385,29 @@ createForestADABoost <- function(formula, data, fun = sse, err = 0.5, maxK = 100
 }
 
 createForestADABoost = cmpfun(createForestADABoost)
+
+
+createForestGradienBoost <- function(formula, data, fun = sse, err = 0.5, maxK = 1, minGroupe = 1, penalty = 0,n = 10, learningValue = 0.1){
+  
+  #filtrovanie len potrebnych dat
+  data2 = filterData(formula, data)
+  
+  y = data2[,1]
+  
+  forest = TreeNodeGradBoostForest$new(n = n, value = mean(y), learningValue = learningValue)
+  lengthD = nrow(data2)
+  pred = 1:lengthD * 0 + forest$value
+  
+  for (i in 1:n) {
+    
+    data2[,1] =  y - pred
+    forest$trees[[i]] = createTreeRec(data2, fun, err,maxK ,minGroupe,penalty)
+    
+    pred = pred + (forest$trees[[i]])$predict(data2) * learningValue
+   # print(paste(i,sum((y - pred)**2)))
+  }
+  
+  return(forest)
+}
+
+createForestGradienBoost = cmpfun(createForestGradienBoost)
