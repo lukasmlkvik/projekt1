@@ -18,7 +18,7 @@ ITreeNode <- setRefClass("ITreeNode",
                           printModel = function(m = ""){
                             print("!!!")
                           },
-                          variableImportance = function(){
+                          variableImportance = function(data, YParam,lossFun = sse){
                             print("!!!")
                           }
                         )
@@ -37,8 +37,14 @@ TreeNode <- setRefClass("TreeNode",
                           printModel = function(m = ""){
                             print(paste(m,value))
                           },
-                          variableImportance = function(){
-                            return(c())
+                          variableImportance = function(data, YParam,lossFun = sse){
+                            l = c()
+                            
+                            sendData = 0
+                            sendData$value = lossFun(data[,YParam],mean(data[,YParam]))
+                            
+                            sendData$array = l
+                            return(sendData)
                           }
                         )
 )
@@ -58,27 +64,42 @@ TreeNodeCompare <- setRefClass("TreeNodeCompare",
                                    equalesMore$printModel(paste(m,"  "))
                                  },
                                  getCompareValue = function(){return(NULL)},
-                                 variableImportance = function(){
+                                 variableImportance = function(data, YParam,lossFun = sse){
                                    l = c()
-                                   l[param] = 0.5
-                                   l2 = less$variableImportance() / 4
-                                   l3 = equalesMore$variableImportance() / 4
-                                   for (i in names(l2)) {
+                                   l2 = 0
+                                   l3 = 0
+                                   if(is.numeric(getCompareValue())){
+                                     l2 = less$variableImportance(data[data[param] < compareValue,], YParam,lossFun)
+                                     l3 = equalesMore$variableImportance(data[data[param] >= compareValue,], YParam,lossFun)
+                                   }else{
+                                     l2 = less$variableImportance(data[data[param] != compareValue,], YParam,lossFun)
+                                     l3 = equalesMore$variableImportance(data[data[param] == compareValue,], YParam,lossFun)
+                                   }
+                                   
+                                   sendData = 0
+                                   sendData$value = lossFun(data[,YParam],mean(data[,YParam]))
+                                   
+                                   l[param] = sendData$value - l2$value - l3$value
+                                   
+                                   
+                                   for (i in names(l2$array)) {
                                      if(!is.na(l[i])){
-                                       l[i] = l[i] + l2[i]
+                                       l[i] = l[i] + l2$array[i]
                                      }else{
-                                       l[i] = l2[i]
+                                       l[i] = l2$array[i]
                                      }
                                    }
-                                   for (i in names(l3)) {
+                                   for (i in names(l3$array)) {
                                      if(!is.na(l[i])){
-                                       l[i] = l[i] + l3[i]
+                                       l[i] = l[i] + l3$array[i]
                                      }else{
-                                       l[i] = l3[i]
+                                       l[i] = l3$array[i]
                                      }
                                    }
-                                   #print(l)
-                                   return(l)
+                                   
+                                   
+                                   sendData$array = l
+                                   return(sendData)
                                  }
                                )
 )
