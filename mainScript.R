@@ -50,7 +50,7 @@ model =  createForest(survived ~ ., train,lossFun=sse,maxK=2,minGroupe = 10,n=10
 model$predict(test) - model$predict2(test)
 
 model$printModel()
-model$variableImportance()
+model$variableImportance(train,"survived",sse)
 
 system.time(
   replicate(n,createTree(survived ~ sex + age + pclass + fare, train,lossFun=sse,maxK=10,minGroupe = 20))
