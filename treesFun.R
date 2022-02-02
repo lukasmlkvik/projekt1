@@ -68,6 +68,7 @@ TreeNodeCompare <- setRefClass("TreeNodeCompare",
                                    l = c()
                                    l2 = 0
                                    l3 = 0
+                                   #zistenie variableImportance + hodnota loss funkcie zo synov nodu
                                    if(is.numeric(getCompareValue())){
                                      l2 = less$variableImportance(data[data[param] < compareValue,], YParam,lossFun)
                                      l3 = equalesMore$variableImportance(data[data[param] >= compareValue,], YParam,lossFun)
@@ -78,10 +79,10 @@ TreeNodeCompare <- setRefClass("TreeNodeCompare",
                                    
                                    sendData = 0
                                    sendData$value = lossFun(data[,YParam],mean(data[,YParam]))
-                                   
+                                   #ulozenie hodnoty, o kolko sa zlepsila loss funkcia, ked sa vetvilo podla tohto parametra
                                    l[param] = sendData$value - l2$value - l3$value
                                    
-                                   
+                                   #spojenie zoznamu variableImportance z aktualneho nodu z jeho synmi
                                    for (i in names(l2$array)) {
                                      if(!is.na(l[i])){
                                        l[i] = l[i] + l2$array[i]
